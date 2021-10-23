@@ -1,0 +1,6 @@
+repository: https://github.com/rgl/tinkerbell-debian-osie
+runner:
+  name: ghar-debian-11-amd64
+  image: ghar-debian-11
+  labels:
+    - debian-11
