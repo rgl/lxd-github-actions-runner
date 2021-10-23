@@ -1,5 +1,7 @@
 # About
 
+[![build](https://github.com/rgl/lxd-github-actions-runner/actions/workflows/build.yml/badge.svg)](https://github.com/rgl/lxd-github-actions-runner/actions/workflows/build.yml)
+
 Execute a self-hosted GitHub Actions Runner in a ephemeral LXD container.
 
 # Usage
