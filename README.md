@@ -45,6 +45,8 @@ sudo ./uninstall.sh
 # Reference
 
 * GitHub
+  * [About self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners)
+  * [Using self-hosted runners in a workflow](https://docs.github.com/en/actions/hosting-your-own-runners/using-self-hosted-runners-in-a-workflow)
   * [Self-hosted runners API](https://docs.github.com/en/rest/reference/actions#self-hosted-runners)
   * [Documentation](https://github.com/actions/runner/tree/main/docs)
   * [Source code repository](https://github.com/actions/runner)
