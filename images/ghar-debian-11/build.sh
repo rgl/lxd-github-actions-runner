@@ -44,6 +44,10 @@ set completion-ignore-case on
 "\eOC": forward-word
 EOF
 
+# let the sudo group members use root permissions without a password.
+# NB d-i automatically adds vagrant into the sudo group.
+sed -i -E 's,^%sudo\s+.+,%sudo ALL=(ALL) NOPASSWD:ALL,g' /etc/sudoers
+
 # add the GitHub Actions Runner user.
 groupadd ghar
 adduser \
@@ -54,6 +58,7 @@ adduser \
     --ingroup ghar \
     ghar
 install -d -o ghar -g ghar -m 750 /home/ghar
+usermod -aG sudo ghar
 
 # install dependencies.
 apt-get install -y git curl
