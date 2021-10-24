@@ -85,3 +85,23 @@ LXCEXEC
 lxc stop $image_name
 lxc config set $image_name boot.autostart=false
 lxc config set $image_name security.idmap.isolated=true
+# NB without security.privileged=true debootstrap fails as:
+#       P: Running debootstrap...
+#       mknod: /home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot/test-dev-null: Operation not permitted
+#       E: Cannot install into target '/home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot' mounted with noexec or nodev
+#       E: An unexpected failure occurred, exiting...
+lxc config set $image_name security.privileged=true
+# NB without raw.lxc=lxc.apparmor.profile=unconfined debootstrap fails as:
+#       W: Failure trying to run: chroot "/home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot" mount -t proc proc /proc
+#       W: See /home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot/debootstrap/debootstrap.log for details
+#       W: Failure trying to run: chroot "/home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot" mount -t sysfs sysfs /sys
+#       W: See /home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot/debootstrap/debootstrap.log for details
+# NB without raw.lxc=lxc.apparmor.profile=unconfined debootstrap fails as:
+#       P: Begin mounting /dev/pts...
+#       mount: /home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot/dev/pts: cannot mount devpts-live read-only.
+#       [2021-10-24 07:56:36] lb chroot_proc install
+#       P: Begin mounting /proc...
+#       mount: /home/ghar/runner/_work/tinkerbell-debian-osie/tinkerbell-debian-osie/osie-arm64/chroot/proc: cannot mount proc-live read-only.
+#       E: An unexpected failure occurred, exiting...
+#       P: Begin unmounting filesystems...
+lxc config set $image_name raw.lxc=lxc.apparmor.profile=unconfined
