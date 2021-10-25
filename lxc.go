@@ -7,8 +7,6 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
-
-	"github.com/alessio/shellescape"
 )
 
 type lxcExecError struct {
@@ -58,12 +56,12 @@ func lxcExists(name string) (bool, error) {
 	return output != "", nil
 }
 
-func lxcExecRunner(name string) error {
+func lxcExec(name string, user string, command string) error {
 	path, err := exec.LookPath("lxc")
 	if err != nil {
 		return fmt.Errorf("failed to find lxc: %w", err)
 	}
-	return syscall.Exec(path, []string{"lxc", "exec", name, "--", "su", "-l", "-s", "/home/ghar/runner/run.sh", "ghar"}, []string{})
+	return syscall.Exec(path, []string{"lxc", "exec", name, "--", "su", "-l", "-s", command, user}, []string{})
 }
 
 func lxcCopy(from, to string) error {
@@ -108,24 +106,5 @@ func lxcStart(name string) error {
 		return err
 	}
 
-	return nil
-}
-
-func lxcConfigure(name string, owner string, repo string, labels []string, token string) error {
-	log.Printf("Configuring the %s runner", name)
-	command := shellescape.QuoteCommand([]string{
-		"/home/ghar/runner/config.sh",
-		"--unattended",
-		"--ephemeral",
-		"--replace",
-		"--url", fmt.Sprintf("https://github.com/%s/%s", owner, repo),
-		"--token", token,
-		"--labels", strings.Join(labels, ","),
-	})
-	stdout, err := lxcWithInput(command, "exec", name, "--", "su", "-s", "/bin/bash", "-l", "ghar")
-	if err != nil {
-		return err
-	}
-	log.Printf("Configuration result:\n%s", stdout)
 	return nil
 }

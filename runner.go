@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strings"
 
+	"github.com/alessio/shellescape"
 	"github.com/google/go-github/v39/github"
 	"golang.org/x/oauth2"
 )
@@ -60,16 +62,35 @@ func (r *runner) Exec() error {
 		return fmt.Errorf("failed to start runner %s: %w", r.name, err)
 	}
 
-	err = lxcConfigure(r.name, r.owner, r.repo, r.labels, registrationToken.GetToken())
+	err = runnerConfigure(r.name, r.owner, r.repo, r.labels, registrationToken.GetToken())
 	if err != nil {
 		return fmt.Errorf("failed to start runner %s because configure failed: %w", r.name, err)
 	}
 
 	log.Printf("Executing the %s runner", r.name)
-	err = lxcExecRunner(r.name)
+	err = lxcExec(r.name, "ghar", "/home/ghar/runner/run.sh")
 	if err != nil {
 		return fmt.Errorf("failed to execute the runner %s: %w", r.name, err)
 	}
 
+	return nil
+}
+
+func runnerConfigure(name string, owner string, repo string, labels []string, token string) error {
+	log.Printf("Configuring the %s runner", name)
+	command := shellescape.QuoteCommand([]string{
+		"/home/ghar/runner/config.sh",
+		"--unattended",
+		"--ephemeral",
+		"--replace",
+		"--url", fmt.Sprintf("https://github.com/%s/%s", owner, repo),
+		"--token", token,
+		"--labels", strings.Join(labels, ","),
+	})
+	stdout, err := lxcWithInput(command, "exec", name, "--", "su", "-s", "/bin/bash", "-l", "ghar")
+	if err != nil {
+		return err
+	}
+	log.Printf("Configuration result:\n%s", stdout)
 	return nil
 }
