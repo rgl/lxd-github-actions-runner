@@ -33,6 +33,7 @@ install    -o root     -g lxd-ghar -m 640 config.yml /etc/lxd-ghar/config.yml
 install    -o root     -g root     -m 600 /dev/null /etc/lxd-ghar/environment
 
 cat >/etc/lxd-ghar/environment <<EOF
+LXD_SOCKET=/var/snap/lxd/common/lxd/unix.socket
 GITHUB_TOKEN=$GITHUB_TOKEN
 EOF
 

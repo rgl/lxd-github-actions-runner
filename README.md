@@ -26,6 +26,7 @@ Build and execute the runner:
 
 ```bash
 go build
+export LXD_SOCKET='/var/snap/lxd/common/lxd/unix.socket'
 export GITHUB_TOKEN='your-lxd-ghar-pat'
 ./lxd-github-actions-runner -config config.yml
 ```
