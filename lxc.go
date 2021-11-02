@@ -71,6 +71,43 @@ func lxcExists(name string) (bool, error) {
 	return instance != nil, nil
 }
 
+func lxcDelete(name string) error {
+	c, err := newLxdClient()
+	if err != nil {
+		return fmt.Errorf("failed to create the lxd client: %w", err)
+	}
+	instance, _, err := c.GetInstance(name)
+	if err != nil {
+		if lxdApi.StatusErrorCheck(err, 404) {
+			return nil
+		}
+		return err
+	}
+	if instance.StatusCode != 0 && instance.StatusCode != lxdApi.Stopped {
+		stateRequest := lxdApi.InstanceStatePut{
+			Action:  "stop",
+			Timeout: -1,
+			Force:   true,
+		}
+		op, err := c.UpdateInstanceState(name, stateRequest, "")
+		if err != nil {
+			return err
+		}
+		err = op.Wait()
+		if err != nil {
+			return fmt.Errorf("failed to stop instance %s: %w", name, err)
+		}
+		if instance.Ephemeral {
+			return nil
+		}
+	}
+	op, err := c.DeleteInstance(name)
+	if err != nil {
+		return fmt.Errorf("failed to delete instance %s: %w", name, err)
+	}
+	return op.Wait()
+}
+
 func lxcExec(name string, user string, command string) error {
 	path, err := exec.LookPath("lxc")
 	if err != nil {
@@ -87,7 +124,7 @@ func lxcCopy(from, to string) error {
 	}
 	if exists {
 		log.Printf("Deleting the existing %s container", to)
-		_, err := lxc("delete", to, "--force")
+		err := lxcDelete(to)
 		if err != nil {
 			return fmt.Errorf("failed to copy %s to %s because delete failed: %w", from, to, err)
 		}
