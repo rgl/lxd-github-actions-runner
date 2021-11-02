@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -12,6 +13,14 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	lxdApi "github.com/lxc/lxd/shared/api"
 )
+
+type writerBuffer struct {
+	bytes.Buffer
+}
+
+func (b *writerBuffer) Close() error {
+	return nil
+}
 
 type lxcExecError struct {
 	ExitCode int
@@ -25,35 +34,6 @@ func (err *lxcExecError) Error() string {
 
 func newLxdClient() (lxd.InstanceServer, error) {
 	return lxd.ConnectLXDUnix("", nil)
-}
-
-func lxc(args ...string) (string, error) {
-	return lxcWithInput("", args...)
-}
-
-func lxcWithInput(input string, args ...string) (string, error) {
-	var stderr, stdout bytes.Buffer
-
-	cmd := exec.Command("lxc", args...)
-	cmd.Stdin = strings.NewReader(input)
-	cmd.Stderr = &stderr
-	cmd.Stdout = &stdout
-
-	err := cmd.Run()
-
-	if err != nil {
-		exitCode := -1
-		if exitError, ok := err.(*exec.ExitError); ok {
-			exitCode = exitError.ProcessState.ExitCode()
-		}
-		return "", &lxcExecError{
-			ExitCode: exitCode,
-			Stdout:   stdout.String(),
-			Stderr:   stderr.String(),
-		}
-	}
-
-	return strings.TrimSpace(stdout.String()), nil
 }
 
 func lxcExists(name string) (bool, error) {
@@ -114,6 +94,44 @@ func lxcExec(name string, user string, command string) error {
 		return fmt.Errorf("failed to find lxc: %w", err)
 	}
 	return syscall.Exec(path, []string{"lxc", "exec", name, "--", "su", "-l", "-s", command, user}, []string{})
+}
+
+func lxcExecWithInput(name string, input string, args ...string) (string, error) {
+	c, err := newLxdClient()
+	if err != nil {
+		return "", fmt.Errorf("failed to create the lxd client: %w", err)
+	}
+	execRequest := lxdApi.ContainerExecPost{
+		Command:   args,
+		WaitForWS: true,
+	}
+	execStdout := &writerBuffer{}
+	execStderr := &writerBuffer{}
+	execArgs := lxd.ContainerExecArgs{
+		Stdin:    io.NopCloser(strings.NewReader(input)),
+		Stdout:   execStdout,
+		Stderr:   execStderr,
+		DataDone: make(chan bool),
+	}
+	op, err := c.ExecContainer(name, execRequest, &execArgs)
+	if err != nil {
+		return "", fmt.Errorf("failed to start the exec for the container to be fully running: %w", err)
+	}
+	err = op.Wait()
+	if err != nil {
+		return "", fmt.Errorf("failed to wait for the container to be fully running: %w", err)
+	}
+	opAPI := op.Get()
+	<-execArgs.DataDone
+	exitCode := int(opAPI.Metadata["return"].(float64))
+	if exitCode != 0 {
+		return "", &lxcExecError{
+			ExitCode: exitCode,
+			Stdout:   execStdout.String(),
+			Stderr:   execStderr.String(),
+		}
+	}
+	return strings.TrimSpace(execStdout.String()), nil
 }
 
 func lxcCopy(from, to string) error {

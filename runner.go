@@ -87,7 +87,7 @@ func runnerConfigure(name string, owner string, repo string, labels []string, to
 		"--token", token,
 		"--labels", strings.Join(labels, ","),
 	})
-	stdout, err := lxcWithInput(command, "exec", name, "--", "su", "-s", "/bin/bash", "-l", "ghar")
+	stdout, err := lxcExecWithInput(name, command, "su", "-s", "/bin/bash", "-l", "ghar")
 	if err != nil {
 		return err
 	}
