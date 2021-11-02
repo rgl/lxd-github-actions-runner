@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -118,18 +119,46 @@ func lxcCopy(from, to string) error {
 }
 
 func lxcStart(name string) error {
+	c, err := newLxdClient()
+	if err != nil {
+		return fmt.Errorf("failed to create the lxd client: %w", err)
+	}
+
 	// start the container.
 	log.Printf("Starting the %s container", name)
-	_, err := lxc("start", name)
+	op, err := c.UpdateContainerState(name, lxdApi.ContainerStatePut{
+		Action:  "start",
+		Timeout: -1,
+	}, "")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start container: %w", err)
+	}
+	err = op.Wait()
+	if err != nil {
+		return fmt.Errorf("failed to wait for start container: %w", err)
 	}
 
 	// wait for the container to be fully running.
 	log.Printf("Waiting for the %s container to be fully running", name)
-	_, err = lxc("exec", name, "--", "bash", "-c", "while [ \"$(systemctl is-system-running)\" != \"running\" ]; do sleep 1; done")
+	execRequest := lxdApi.ContainerExecPost{
+		Command: []string{
+			"bash",
+			"-c",
+			"while [ \"$(systemctl is-system-running)\" != \"running\" ]; do sleep 1; done",
+		},
+	}
+	execArgs := lxd.ContainerExecArgs{
+		Stdin:  nil,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	op, err = c.ExecContainer(name, execRequest, &execArgs)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start the exec for the container to be fully running: %w", err)
+	}
+	err = op.Wait()
+	if err != nil {
+		return fmt.Errorf("failed to wait for the container to be fully running: %w", err)
 	}
 
 	return nil
