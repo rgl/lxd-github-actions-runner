@@ -65,7 +65,7 @@ apt-get install -y git curl
 
 # install the GitHub Actions Runner.
 # see https://github.com/actions/runner/releases
-ghar_version='2.283.3'
+ghar_version='2.284.0'
 if [ "$(uname -m)" == "aarch64" ]; then
     ghar_arch=arm64
 else
