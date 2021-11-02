@@ -101,25 +101,25 @@ func lxcExecWithInput(name string, input string, args ...string) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("failed to create the lxd client: %w", err)
 	}
-	execRequest := lxdApi.ContainerExecPost{
+	execRequest := lxdApi.InstanceExecPost{
 		Command:   args,
 		WaitForWS: true,
 	}
 	execStdout := &writerBuffer{}
 	execStderr := &writerBuffer{}
-	execArgs := lxd.ContainerExecArgs{
+	execArgs := lxd.InstanceExecArgs{
 		Stdin:    io.NopCloser(strings.NewReader(input)),
 		Stdout:   execStdout,
 		Stderr:   execStderr,
 		DataDone: make(chan bool),
 	}
-	op, err := c.ExecContainer(name, execRequest, &execArgs)
+	op, err := c.ExecInstance(name, execRequest, &execArgs)
 	if err != nil {
-		return "", fmt.Errorf("failed to start the exec for the container to be fully running: %w", err)
+		return "", fmt.Errorf("failed to start the exec for the instance to be fully running: %w", err)
 	}
 	err = op.Wait()
 	if err != nil {
-		return "", fmt.Errorf("failed to wait for the container to be fully running: %w", err)
+		return "", fmt.Errorf("failed to wait for the instance to be fully running: %w", err)
 	}
 	opAPI := op.Get()
 	<-execArgs.DataDone
@@ -135,24 +135,24 @@ func lxcExecWithInput(name string, input string, args ...string) (string, error)
 }
 
 func lxcCopy(from, to string) error {
-	// delete the "to" container if it exists.
+	// delete the "to" instance if it exists.
 	exists, err := lxcExists(to)
 	if err != nil {
 		return fmt.Errorf("failed to copy %s to %s because exists failed: %w", from, to, err)
 	}
 	if exists {
-		log.Printf("Deleting the existing %s container", to)
+		log.Printf("Deleting the existing %s instance", to)
 		err := lxcDelete(to)
 		if err != nil {
 			return fmt.Errorf("failed to copy %s to %s because delete failed: %w", from, to, err)
 		}
 	}
 
-	// clone the existing container into a new one.
+	// clone the existing instance into a new one.
 	// NB we should not use the --ephemeral flag because we loose the
 	//    possibility to troubleshoot. instead, we should explicitly
-	//    delete the container ourselfs.
-	log.Printf("Copying %s to the %s container", from, to)
+	//    delete the instance ourselfs.
+	log.Printf("Copying %s to the %s instance", from, to)
 	c, err := newLxdClient()
 	if err != nil {
 		return fmt.Errorf("failed to create the lxd client: %w", err)
@@ -179,41 +179,41 @@ func lxcStart(name string) error {
 		return fmt.Errorf("failed to create the lxd client: %w", err)
 	}
 
-	// start the container.
-	log.Printf("Starting the %s container", name)
-	op, err := c.UpdateContainerState(name, lxdApi.ContainerStatePut{
+	// start the instance.
+	log.Printf("Starting the %s instance", name)
+	op, err := c.UpdateInstanceState(name, lxdApi.InstanceStatePut{
 		Action:  "start",
 		Timeout: -1,
 	}, "")
 	if err != nil {
-		return fmt.Errorf("failed to start container: %w", err)
+		return fmt.Errorf("failed to start instance: %w", err)
 	}
 	err = op.Wait()
 	if err != nil {
-		return fmt.Errorf("failed to wait for start container: %w", err)
+		return fmt.Errorf("failed to wait for start instance: %w", err)
 	}
 
-	// wait for the container to be fully running.
-	log.Printf("Waiting for the %s container to be fully running", name)
-	execRequest := lxdApi.ContainerExecPost{
+	// wait for the instance to be fully running.
+	log.Printf("Waiting for the %s instance to be fully running", name)
+	execRequest := lxdApi.InstanceExecPost{
 		Command: []string{
 			"bash",
 			"-c",
 			"while [ \"$(systemctl is-system-running)\" != \"running\" ]; do sleep 1; done",
 		},
 	}
-	execArgs := lxd.ContainerExecArgs{
+	execArgs := lxd.InstanceExecArgs{
 		Stdin:  nil,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
-	op, err = c.ExecContainer(name, execRequest, &execArgs)
+	op, err = c.ExecInstance(name, execRequest, &execArgs)
 	if err != nil {
-		return fmt.Errorf("failed to start the exec for the container to be fully running: %w", err)
+		return fmt.Errorf("failed to start the exec for the instance to be fully running: %w", err)
 	}
 	err = op.Wait()
 	if err != nil {
-		return fmt.Errorf("failed to wait for the container to be fully running: %w", err)
+		return fmt.Errorf("failed to wait for the instance to be fully running: %w", err)
 	}
 
 	return nil
