@@ -97,9 +97,21 @@ func lxcCopy(from, to string) error {
 	//    possibility to troubleshoot. instead, we should explicitly
 	//    delete the container ourselfs.
 	log.Printf("Copying %s to the %s container", from, to)
-	_, err = lxc("copy", from, to)
+	c, err := newLxdClient()
 	if err != nil {
-		return fmt.Errorf("failed to copy %s to %s: %w", from, to, err)
+		return fmt.Errorf("failed to create the lxd client: %w", err)
+	}
+	instance, _, err := c.GetInstance(from)
+	if err != nil {
+		return fmt.Errorf("failed to get instance %s: %w", from, err)
+	}
+	op, err := c.CopyInstance(c, *instance, &lxd.InstanceCopyArgs{Name: to})
+	if err != nil {
+		return fmt.Errorf("failed to copy instance %s to %s: %w", from, to, err)
+	}
+	err = op.Wait()
+	if err != nil {
+		return fmt.Errorf("failed to wait for copy instance %s to %s: %w", from, to, err)
 	}
 
 	return nil
